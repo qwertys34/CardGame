@@ -102,22 +102,21 @@ namespace Game.scripts
         
         public void ChangeTurn()
         {
+            FightCards();
             StopAllCoroutines();
             Turn++;
             Debug.Log("Turn number: " + Turn);
             finishTurnBtn.interactable = IsPlayerTurn;
 
-            if (IsPlayerTurn)
-            {
-                FightCards();
+            if (IsPlayerTurn) 
                 GiveNewCards();
-            }
+            
             StartCoroutine(TurnFunc());
         }
 
         private void FightCards()
         {
-            if (PlayerFieldCards.Count == 0 && EnemyFieldCards.Count == 0)
+            if (PlayerFieldCards.Count == 0 || EnemyFieldCards.Count == 0)
                 return;
 
             for (int i = 0; i < PlayerFieldCards.Count; i++)
@@ -130,11 +129,13 @@ namespace Game.scripts
                 
                 eCard.SelfCard.Defence -= pCard.SelfCard.Damage;
                 pCard.SelfCard.Defence -= eCard.SelfCard.Damage;
+                Debug.Log($"Player {i} card hp: {pCard.SelfCard.Defence}");
+                Debug.Log($"Enemy {i} card hp: {eCard.SelfCard.Defence}");
                 
                 if (eCard.SelfCard.Defence <= 0)
                 {
                     EnemyFieldCards.Remove(eCard);
-                    Destroy(eCard);
+                    Destroy(eCard.gameObject);
                 }
                 else    
                     eCard.UpdateInfo();
@@ -142,7 +143,7 @@ namespace Game.scripts
                 if (pCard.SelfCard.Defence <= 0)
                 {
                     PlayerFieldCards.Remove(pCard);
-                    Destroy(pCard);
+                    Destroy(pCard.gameObject);
                 }
                 else 
                     pCard.UpdateInfo();
