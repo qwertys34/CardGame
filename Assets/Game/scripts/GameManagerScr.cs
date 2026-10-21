@@ -94,15 +94,14 @@ namespace Game.scripts
             CurrentGame = new Game();
             
             GiveHandCards(CurrentGame.PlayerDeck, PlayerHandTr);
-            //GiveHandCards(CurrentGame.EnemyDeck, EnemyHandTr);
-            GiveCardToHand(CurrentGame.EnemyDeck, EnemyHandTr);
+            GiveHandCards(CurrentGame.EnemyDeck, EnemyHandTr);
+            //GiveCardToHand(CurrentGame.EnemyDeck, EnemyHandTr);
 
             StartCoroutine(TurnFunc());
         }
         
         public void ChangeTurn()
         {
-            FightCards();
             StopAllCoroutines();
             Turn++;
             Debug.Log("Turn number: " + Turn);
@@ -114,40 +113,52 @@ namespace Game.scripts
             StartCoroutine(TurnFunc());
         }
 
-        private void FightCards()
+        private IEnumerator FightCards()
         {
             if (PlayerFieldCards.Count == 0 || EnemyFieldCards.Count == 0)
-                return;
+                yield break;
 
-            for (int i = 0; i < PlayerFieldCards.Count; i++)
+            var minHandLength = Mathf.Min(PlayerFieldCards.Count, EnemyFieldCards.Count);
+            
+            PlayerFieldCards.Sort((a, b) => a.transform.
+                GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex()));
+            
+            EnemyFieldCards.Sort((a, b) => a.transform.
+                GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex()));
+            
+            for (int i = 0; i < minHandLength; i++)
             {
                 var pCard = PlayerFieldCards[i];
                 var eCard = EnemyFieldCards[i];
                 
-                if (!pCard || !eCard) // пока так, в дальнейшем наносить урон противнику, если его не дефает карта
-                    return;
-                
-                eCard.SelfCard.Defence -= pCard.SelfCard.Damage;
                 pCard.SelfCard.Defence -= eCard.SelfCard.Damage;
-                Debug.Log($"Player {i} card hp: {pCard.SelfCard.Defence}");
-                Debug.Log($"Enemy {i} card hp: {eCard.SelfCard.Defence}");
+                eCard.SelfCard.Defence -= pCard.SelfCard.Damage;
+
+                if (pCard.SelfCard.Defence <= 0) 
+                    pCard.SelfCard.isAlive = false;
                 
                 if (eCard.SelfCard.Defence <= 0)
-                {
-                    EnemyFieldCards.Remove(eCard);
-                    Destroy(eCard.gameObject);
-                }
-                else    
-                    eCard.UpdateInfo();
-
-                if (pCard.SelfCard.Defence <= 0)
-                {
-                    PlayerFieldCards.Remove(pCard);
-                    Destroy(pCard.gameObject);
-                }
-                else 
-                    pCard.UpdateInfo();
+                    eCard.SelfCard.isAlive = false;
+                
+                pCard.UpdateInfo();
+                eCard.UpdateInfo();
+                yield return new WaitForSeconds(3);
             }
+
+            var enemyRemoveCards = EnemyFieldCards.FindAll(e => !e.SelfCard.isAlive);
+            enemyRemoveCards.ForEach(x =>
+            {
+                Destroy(x.gameObject);
+                EnemyFieldCards.Remove(x);
+            });
+            var playerRemoveCards = PlayerFieldCards.FindAll(p => !p.SelfCard.isAlive);
+            playerRemoveCards.ForEach(x =>
+            {
+                Destroy(x.gameObject);
+                PlayerFieldCards.Remove(x);
+            });
+
+            yield return new WaitForSeconds(2);
         }
         
         private IEnumerator TurnFunc()
@@ -163,7 +174,7 @@ namespace Game.scripts
                     timeRemainingText.text = TurnTime.ToString();
                 }
             }
-            else
+            else//
             {
                 while (TurnTime-- > 27)
                 {
@@ -174,7 +185,9 @@ namespace Game.scripts
                 if (EnemyHandCards.Count > 0)
                     EnemyTurn(EnemyHandCards);
             }
-            
+
+            yield return new WaitForSeconds(2);
+            yield return StartCoroutine(FightCards());
             ChangeTurn();
         }
 
